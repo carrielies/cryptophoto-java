@@ -43,14 +43,69 @@ public class CryptoPhotoUtils {
 
     private String publicKey;
 
+    /**
+     * Immutable CryptoPhoto session abstraction.
+     */
     public static class CryptoPhotoSession {
 
-        private String id;
+        private final String id;
 
-        private boolean valid;
+        private final String error;
 
-        private boolean token;
+        private final boolean isValid;
 
-        private String error;
+        private final boolean hasToken;
+
+        public CryptoPhotoSession(String id, String error, boolean isValid, boolean hasToken) {
+            this.id = id;
+            this.error = error;
+            this.isValid = isValid;
+            this.hasToken = hasToken;
+        }
+
+        /**
+         * Initializes a {@link CryptoPhotoSession} by parsing a CryptoPhoto response to an <code>api/get/session</code>
+         * API request.
+         *
+         * @param cpResponse CryptoPhoto response to an <code>api/get/session</code> API request call
+         */
+        public CryptoPhotoSession(String cpResponse) {
+            if (cpResponse == null) {
+                throw new NullPointerException("cannot parse a null CryptoPhoto response");
+            }
+
+            String []lines = cpResponse.split("(\\r?\\n)+");
+            if(lines.length < 4) {
+                throw new IllegalArgumentException("unexpected CryptoPhoto response length (< 4 lines)");
+            }
+
+            String status = lines[0].trim().toLowerCase();
+            switch(status) { // requires Java 7; if not available, just use if/else-if/else with .equals()
+            case "success":
+                id = lines[1].trim();
+                error = null;
+                isValid = true;
+                break;
+            case "error":
+                id = null;
+                error = lines[1].trim();
+                isValid = false;
+                break;
+            default:
+                id = error = null;
+                isValid = false;
+                // throw new IllegalArgumentException("unexpected CryptoPhoto response line at position 0 (" + id + ")");
+                // add logging???
+            }
+
+            this.hasToken = "true".equalsIgnoreCase(lines[2].trim());
+        }
+    }
+
+    public static void main(String []args) {
+        String []lines = "abc\n123\r\n \t qwq\r".split("(\\r?\\n)+");
+        for (String line : lines) {
+            System.out.println("[" + line.trim() + "]");
+        }
     }
 }
