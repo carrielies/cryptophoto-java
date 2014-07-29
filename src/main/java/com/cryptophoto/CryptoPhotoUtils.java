@@ -37,17 +37,12 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
-import java.net.InetAddress;
 import java.net.URL;
-import java.net.URLEncoder;
-import java.net.UnknownHostException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
 import java.util.Date;
-import java.util.Formatter;
 
-import static java.lang.String.format;
+import static java.net.URLEncoder.encode;
 
 /**
  * Helper class that handles calling the <a href="http://cryptophoto.com/admin/api">CryptoPhoto API</a>.
@@ -66,6 +61,12 @@ public class CryptoPhotoUtils {
 
     private Mac mac; // used to sign outgoing data
 
+    private static final char[] HEX = "0123456789ABCDEF".toCharArray();
+
+    public CryptoPhotoUtils(String publicKey, String privateKey) throws InvalidKeyException {
+        this(null, publicKey, privateKey);
+    }
+
     public CryptoPhotoUtils(String server, String publicKey, String privateKey) throws InvalidKeyException {
         if (publicKey == null || privateKey == null) {
             throw new NullPointerException("cannot use null public or private CryptoPhoto keys");
@@ -78,65 +79,71 @@ public class CryptoPhotoUtils {
         try {
             mac = Mac.getInstance("HmacSHA1");
             mac.init(new SecretKeySpec(this.privateKey, "HmacSHA1"));
-        } catch (NoSuchAlgorithmException e) { // cannot happen since we hard-code the algorithm
-            e.printStackTrace();
+        } catch (NoSuchAlgorithmException e) {
+            // cannot happen since we hard-code the algorithm
         }
-    }
-
-    public CryptoPhotoUtils(String publicKey, String privateKey) throws InvalidKeyException {
-        this(null, publicKey, privateKey);
     }
 
     public CryptoPhotoSession getSession(String userId, String ip)
         throws IOException, CryptoPhotoResponseParseException {
-        long time = new Date().getTime();
+        long time = new Date().getTime() / 1000L; // number of seconds since epoch...
 
-        URL url = new URL(server + "/api/get/session");
+        String signature =
+            sign(new StringBuilder(new String(privateKey)).append(time).append(userId).append(publicKey).toString());
+        String data = new StringBuilder("publickey=").append(encode(publicKey, "UTF-8")).append("&uid=")
+                                                     .append(encode(userId, "UTF-8")).append("&time=").append(time)
+                                                     .append("&signature=").append(encode(signature, "UTF-8"))
+                                                     .append("&ip=").append(encode(ip, "UTF-8")).toString();
 
-        String data = format("publickey=%s&uid=%s&time=%d&signature=%s&ip=%s", publicKey, userId, time, sign(
-            new StringBuilder().append(privateKey).append(time).append(userId).append(publicKey).toString()), ip);
-
-        return new CryptoPhotoSession(postRequest(url, data));
+        return new CryptoPhotoSession(post(new URL(server + "/api/get/session"), data.getBytes()));
     }
 
     protected String sign(String data) {
-        String s = new String(Base64.getEncoder().encode(mac.doFinal(data.getBytes())));
-        System.out.println(s);
-        return s;
+        if (data == null) {
+            return null;
+        }
+
+        byte[] bytes = mac.doFinal(data.getBytes());
+        char[] chars = new char[bytes.length * 2];
+
+        for (int i = 0; i < bytes.length; i++) {
+            int v = bytes[i] & 0xFF;
+            chars[i * 2] = HEX[v >>> 4];
+            chars[i * 2 + 1] = HEX[v & 0x0F];
+        }
+
+        return new String(chars);
     }
 
-    protected String postRequest(URL url, String data) throws IOException {
-        String encodedData = URLEncoder.encode(data, "UTF-8");
-        System.out.println(encodedData);
+    protected String post(URL url, byte[] data) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setDoInput(true);
         connection.setDoOutput(true);
         connection.setRequestMethod("POST");
         connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-        connection.setRequestProperty("Content-Length", String.valueOf(encodedData.length()));
+        connection.setRequestProperty("Content-Length", String.valueOf(data.length));
 
         OutputStream out = connection.getOutputStream();
-        out.write(encodedData.getBytes());
-        out.flush();
-        out.close();
-
-        InputStream is = connection.getInputStream();
-        BufferedReader rd = new BufferedReader(new InputStreamReader(is));
-        String line;
-        StringBuilder response = new StringBuilder();
-        while ((line = rd.readLine()) != null) {
-            response.append(line).append("\n");
+        try {
+            out.write(data);
+            out.flush();
+        } finally {
+            out.close();
         }
-        rd.close();
-        return response.toString();
-    }
 
-    /**
-     * Will typically work; otherwise, check out Stephen C's answer at:
-     * http://stackoverflow.com/questions/9481865/how-to-get-ip-address-of-current-machine-using-java
-     */
-    public static String getLocalHostIp() throws UnknownHostException {
-        return InetAddress.getLocalHost().getHostAddress();
+        StringBuilder response = new StringBuilder();
+
+        InputStream in = connection.getInputStream();
+        try {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+            for (String line = reader.readLine(); line != null; line = reader.readLine()) {
+                response.append(line).append("\n");
+            }
+        } finally {
+            in.close();
+        }
+
+        return response.toString();
     }
 
     /**
