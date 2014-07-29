@@ -2,16 +2,16 @@ package com.cryptophoto;
 
 import static com.cryptophoto.CryptoPhotoUtils.CryptoPhotoSession;
 
-public class InvalidCryptoPhotoSession extends Exception {
+public class CryptoPhotoInvalidSession extends Exception {
 
     private CryptoPhotoSession cryptoPhotoSession;
 
-    public InvalidCryptoPhotoSession(CryptoPhotoSession cryptoPhotoSession) {
+    public CryptoPhotoInvalidSession(CryptoPhotoSession cryptoPhotoSession) {
         this();
         this.cryptoPhotoSession = cryptoPhotoSession;
     }
 
-    public InvalidCryptoPhotoSession() {
+    public CryptoPhotoInvalidSession() {
         super("no valid CryptoPhoto session could be established");
     }
 

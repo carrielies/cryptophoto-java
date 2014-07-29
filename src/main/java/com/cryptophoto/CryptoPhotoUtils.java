@@ -145,26 +145,26 @@ public class CryptoPhotoUtils {
         return response.toString();
     }
 
-    public String getTokenGenerationWidget(CryptoPhotoSession cryptoPhotoSession) throws InvalidCryptoPhotoSession {
+    public String getTokenGenerationWidget(CryptoPhotoSession cryptoPhotoSession) throws CryptoPhotoInvalidSession {
         if (cryptoPhotoSession == null) {
             throw new NullPointerException("cannot obtain a token generation widget using a null CryptoPhoto session");
         }
 
         if (!cryptoPhotoSession.isValid) {
-            throw new InvalidCryptoPhotoSession(cryptoPhotoSession);
+            throw new CryptoPhotoInvalidSession(cryptoPhotoSession);
         }
 
         return "<script type=\"text/javascript\" src=\"" + server + "/api/token?sd=" + cryptoPhotoSession.id +
                "\"></script>";
     }
 
-    public String getChallengeWidget(CryptoPhotoSession cryptoPhotoSession) throws InvalidCryptoPhotoSession {
+    public String getChallengeWidget(CryptoPhotoSession cryptoPhotoSession) throws CryptoPhotoInvalidSession {
         if (cryptoPhotoSession == null) {
             throw new NullPointerException("cannot obtain a challenge widget using a null CryptoPhoto session");
         }
 
         if (!cryptoPhotoSession.isValid) {
-            throw new InvalidCryptoPhotoSession(cryptoPhotoSession);
+            throw new CryptoPhotoInvalidSession(cryptoPhotoSession);
         }
 
         return "<script type=\"text/javascript\" src=\"" + server + "/api/challenge?sd=" + cryptoPhotoSession.id +
