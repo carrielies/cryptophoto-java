@@ -43,6 +43,7 @@ import java.net.URLEncoder;
 import java.net.UnknownHostException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.Date;
 import java.util.Formatter;
 
@@ -99,16 +100,14 @@ public class CryptoPhotoUtils {
     }
 
     protected String sign(String data) {
-        Formatter formatter = new Formatter();
-        for (byte b : mac.doFinal(data.getBytes())) {
-            formatter.format("%02x", b);
-        }
-        return formatter.toString();
+        String s = new String(Base64.getEncoder().encode(mac.doFinal(data.getBytes())));
+        System.out.println(s);
+        return s;
     }
 
     protected String postRequest(URL url, String data) throws IOException {
         String encodedData = URLEncoder.encode(data, "UTF-8");
-
+        System.out.println(encodedData);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setDoInput(true);
         connection.setDoOutput(true);

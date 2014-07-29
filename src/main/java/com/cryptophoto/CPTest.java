@@ -33,7 +33,7 @@ public class CPTest {
         CryptoPhotoUtils cryptoPhoto =
             new CryptoPhotoUtils("efe925bda3bc2b5cd6fe3ad3661075a7", "384b1bda2dafcd909f607083da22fef0");
 
-        CryptoPhotoSession session = cryptoPhoto.getSession("octavian", CryptoPhotoUtils.getLocalHostIp());
+        CryptoPhotoSession session = cryptoPhoto.getSession("octavian", "158.169.150.10");
 
         if (!session.isValid) {
             System.out.printf("CryptoPhoto session is not valid!%nERROR: %s%n(Signature: %s)%n%n", session.error,
