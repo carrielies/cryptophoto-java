@@ -53,15 +53,11 @@ import static java.net.URLEncoder.encode;
  */
 public class CryptoPhotoUtils {
 
-    private final String server;
-
-    private final String publicKey;
-
-    private final byte[] privateKey;
-
-    private Mac mac; // used to sign outgoing data
-
     private static final char[] HEX = "0123456789ABCDEF".toCharArray();
+    private final String server;
+    private final String publicKey;
+    private final byte[] privateKey;
+    private Mac mac; // used to sign outgoing data
 
     public CryptoPhotoUtils(String publicKey, String privateKey) throws InvalidKeyException {
         this(null, publicKey, privateKey);
@@ -90,12 +86,15 @@ public class CryptoPhotoUtils {
 
         String signature =
             sign(new StringBuilder(new String(privateKey)).append(time).append(userId).append(publicKey).toString());
+
         String data = new StringBuilder("publickey=").append(encode(publicKey, "UTF-8")).append("&uid=")
                                                      .append(encode(userId, "UTF-8")).append("&time=").append(time)
                                                      .append("&signature=").append(encode(signature, "UTF-8"))
                                                      .append("&ip=").append(encode(ip, "UTF-8")).toString();
 
-        return new CryptoPhotoSession(post(new URL(server + "/api/get/session"), data.getBytes()));
+        URL url = new URL(server + "/api/get/session");
+
+        return new CryptoPhotoSession(post(url, data.getBytes()));
     }
 
     protected String sign(String data) {
@@ -120,8 +119,8 @@ public class CryptoPhotoUtils {
         connection.setDoInput(true);
         connection.setDoOutput(true);
         connection.setRequestMethod("POST");
-        connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
         connection.setRequestProperty("Content-Length", String.valueOf(data.length));
+        connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 
         OutputStream out = connection.getOutputStream();
         try {
@@ -146,6 +145,32 @@ public class CryptoPhotoUtils {
         return response.toString();
     }
 
+    public String getTokenGenerationWidget(CryptoPhotoSession cryptoPhotoSession) throws InvalidCryptoPhotoSession {
+        if (cryptoPhotoSession == null) {
+            throw new NullPointerException("cannot obtain a token generation widget using a null CryptoPhoto session");
+        }
+
+        if (!cryptoPhotoSession.isValid) {
+            throw new InvalidCryptoPhotoSession(cryptoPhotoSession);
+        }
+
+        return "<script type=\"text/javascript\" src=\"" + server + "/api/token?sd=" + cryptoPhotoSession.id +
+               "\"></script>";
+    }
+
+    public String getChallengeWidget(CryptoPhotoSession cryptoPhotoSession) throws InvalidCryptoPhotoSession {
+        if (cryptoPhotoSession == null) {
+            throw new NullPointerException("cannot obtain a challenge widget using a null CryptoPhoto session");
+        }
+
+        if (!cryptoPhotoSession.isValid) {
+            throw new InvalidCryptoPhotoSession(cryptoPhotoSession);
+        }
+
+        return "<script type=\"text/javascript\" src=\"" + server + "/api/challenge?sd=" + cryptoPhotoSession.id +
+               "\"></script>";
+    }
+
     /**
      * Immutable CryptoPhoto session abstraction.
      *
@@ -161,9 +186,9 @@ public class CryptoPhotoUtils {
 
         public final boolean isValid;
 
-        //public final boolean hasToken;
+        public final boolean hasToken;
 
-        //public final String signature;
+        public final String signature;
 
         /**
          * Initializes a {@link CryptoPhotoSession} by parsing a CryptoPhoto response to an <code>api/get/session</code>
@@ -177,9 +202,9 @@ public class CryptoPhotoUtils {
             }
 
             String[] lines = cpResponse.split("(\\r?\\n)+");
-            //if (lines.length < 4) { // expect / parse at least 4 lines since we might want to check the signature:
-            //    throw new CryptoPhotoResponseParseException("unexpected CryptoPhoto response length (< 4 lines)");
-            //}
+            if (lines.length < 2) {
+                throw new CryptoPhotoResponseParseException("unexpected CryptoPhoto response length (< 2 lines)");
+            }
 
             String status = lines[0].trim().toLowerCase();
             switch (status) { // requires Java 7; if not available, just use if/else-if/else with .equals()
@@ -194,11 +219,11 @@ public class CryptoPhotoUtils {
                 isValid = false;
                 break;
             default:
-                throw new CryptoPhotoResponseParseException("unexpected CryptoPhoto response first line: " + status);
+                throw new CryptoPhotoResponseParseException("unexpected CryptoPhoto response status: " + status);
             }
 
-            //hasToken = "true".equalsIgnoreCase(lines[2].trim());
-            //signature = lines[3].trim();
+            hasToken = lines.length > 2 ? "true".equalsIgnoreCase(lines[2].trim()) : false;
+            signature = lines.length > 3 ? lines[3].trim() : null;
         }
     }
 }
