@@ -1,12 +1,10 @@
 package com.cryptophoto;
 
-import static com.cryptophoto.CryptoPhotoUtils.CryptoPhotoSession;
-
 public class CryptoPhotoInvalidSession extends Exception {
 
-    private CryptoPhotoSession cryptoPhotoSession;
+    private CryptoPhotoUtils.CryptoPhotoResponse cryptoPhotoSession;
 
-    public CryptoPhotoInvalidSession(CryptoPhotoSession cryptoPhotoSession) {
+    public CryptoPhotoInvalidSession(CryptoPhotoUtils.CryptoPhotoResponse cryptoPhotoSession) {
         this();
         this.cryptoPhotoSession = cryptoPhotoSession;
     }
@@ -17,7 +15,10 @@ public class CryptoPhotoInvalidSession extends Exception {
 
     @Override
     public String getMessage() {
-        return super.getMessage() +
-               (cryptoPhotoSession != null && cryptoPhotoSession.error != null ? ": " + cryptoPhotoSession.error : "");
+        if (cryptoPhotoSession == null) {
+            return super.getMessage();
+        }
+        String error = cryptoPhotoSession.get("error");
+        return error == null ? super.getMessage() : super.getMessage() + ": " + error;
     }
 }

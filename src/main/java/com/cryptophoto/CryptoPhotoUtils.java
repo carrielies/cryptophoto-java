@@ -41,6 +41,7 @@ import java.net.URL;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Date;
+import java.util.HashMap;
 
 import static java.net.URLEncoder.encode;
 
@@ -53,11 +54,15 @@ import static java.net.URLEncoder.encode;
  */
 public class CryptoPhotoUtils {
 
-    private static final char[] HEX = "0123456789ABCDEF".toCharArray();
     private final String server;
+
     private final String publicKey;
+
     private final byte[] privateKey;
+
     private Mac mac; // used to sign outgoing data
+
+    private static final char[] HEX = "0123456789ABCDEF".toCharArray();
 
     public CryptoPhotoUtils(String publicKey, String privateKey) throws InvalidKeyException {
         this(null, publicKey, privateKey);
@@ -80,7 +85,7 @@ public class CryptoPhotoUtils {
         }
     }
 
-    public CryptoPhotoSession getSession(String userId, String ip)
+    public CryptoPhotoResponse getSession(String userId, String ip)
         throws IOException, CryptoPhotoResponseParseException {
         long time = new Date().getTime() / 1000L; // number of seconds since epoch...
 
@@ -94,7 +99,7 @@ public class CryptoPhotoUtils {
 
         URL url = new URL(server + "/api/get/session");
 
-        return new CryptoPhotoSession(post(url, data.getBytes()));
+        return parseSession(post(url, data.getBytes()));
     }
 
     protected String sign(String data) {
@@ -145,85 +150,90 @@ public class CryptoPhotoUtils {
         return response.toString();
     }
 
-    public String getTokenGenerationWidget(CryptoPhotoSession cryptoPhotoSession) throws CryptoPhotoInvalidSession {
+    protected CryptoPhotoResponse parseSession(String cpResponse) throws CryptoPhotoResponseParseException {
+        if (cpResponse == null) {
+            throw new NullPointerException("cannot parse a null CryptoPhoto response");
+        }
+
+        String[] lines = cpResponse.split("(\\r?\\n)+");
+        if (lines.length < 2) {
+            throw new CryptoPhotoResponseParseException("unexpected CryptoPhoto response length (< 2 lines)");
+        }
+
+        CryptoPhotoResponse response = new CryptoPhotoResponse();
+
+        String status = lines[0].trim().toLowerCase();
+        switch (status) { // requires Java 7; if not available, just use if/else-if/else with .equals()
+        case "success":
+            response.put("id", lines[1].trim());
+            response.put("valid", "true");
+            break;
+        case "error":
+            response.put("error", lines[1].trim());
+            response.put("valid", "false");
+            break;
+        default:
+            throw new CryptoPhotoResponseParseException("unexpected CryptoPhoto response status: " + status);
+        }
+
+        if (lines.length > 2) {
+            response.put("token", lines[2].trim());
+        }
+        if (lines.length > 3) {
+            response.put("signature", lines[3].trim());
+        }
+
+        return response;
+    }
+
+    public String getTokenGenerationWidget(CryptoPhotoResponse cryptoPhotoSession) throws CryptoPhotoInvalidSession {
         if (cryptoPhotoSession == null) {
             throw new NullPointerException("cannot obtain a token generation widget using a null CryptoPhoto session");
         }
 
-        if (!cryptoPhotoSession.isValid) {
+        if (!cryptoPhotoSession.is("valid")) {
             throw new CryptoPhotoInvalidSession(cryptoPhotoSession);
         }
 
-        return "<script type=\"text/javascript\" src=\"" + server + "/api/token?sd=" + cryptoPhotoSession.id +
+        return "<script type=\"text/javascript\" src=\"" + server + "/api/token?sd=" + cryptoPhotoSession.get("id") +
                "\"></script>";
     }
 
-    public String getChallengeWidget(CryptoPhotoSession cryptoPhotoSession) throws CryptoPhotoInvalidSession {
+    public String getChallengeWidget(CryptoPhotoResponse cryptoPhotoSession) throws CryptoPhotoInvalidSession {
         if (cryptoPhotoSession == null) {
             throw new NullPointerException("cannot obtain a challenge widget using a null CryptoPhoto session");
         }
 
-        if (!cryptoPhotoSession.isValid) {
+        if (!cryptoPhotoSession.is("valid")) {
             throw new CryptoPhotoInvalidSession(cryptoPhotoSession);
         }
 
-        return "<script type=\"text/javascript\" src=\"" + server + "/api/challenge?sd=" + cryptoPhotoSession.id +
-               "\"></script>";
+        return "<script type=\"text/javascript\" src=\"" + server + "/api/challenge?sd=" +
+               cryptoPhotoSession.get("id") + "\"></script>";
     }
 
     /**
-     * Immutable CryptoPhoto session abstraction.
+     * CryptoPhoto API response.
      *
      * @author <a href="http://cryptophoto.com">CryptoPhoto</a>,
      *         <a href="mailto:tech@cryptophoto.com">tech@cryptophoto.com</a>
      * @version 1.20140728
      */
-    public static class CryptoPhotoSession {
-
-        public final String id;
-
-        public final String error;
-
-        public final boolean isValid;
-
-        public final boolean hasToken;
-
-        public final String signature;
+    public static class CryptoPhotoResponse extends HashMap<String, String> {
 
         /**
-         * Initializes a {@link CryptoPhotoSession} by parsing a CryptoPhoto response to an <code>api/get/session</code>
-         * API request.
-         *
-         * @param cpResponse CryptoPhoto response to an <code>/get/session</code> API request call
+         * @return <code>true</code> if the value to which the specified <code>key</code> is mapped is
+         * non-<code>null</code> and equals (case-insensitively) 'true', 'yes' or '1'.
          */
-        public CryptoPhotoSession(String cpResponse) throws CryptoPhotoResponseParseException {
-            if (cpResponse == null) {
-                throw new NullPointerException("cannot parse a null CryptoPhoto response");
-            }
-
-            String[] lines = cpResponse.split("(\\r?\\n)+");
-            if (lines.length < 2) {
-                throw new CryptoPhotoResponseParseException("unexpected CryptoPhoto response length (< 2 lines)");
-            }
-
-            String status = lines[0].trim().toLowerCase();
-            switch (status) { // requires Java 7; if not available, just use if/else-if/else with .equals()
-            case "success":
-                id = lines[1].trim();
-                error = null;
-                isValid = true;
-                break;
-            case "error":
-                id = null;
-                error = lines[1].trim();
-                isValid = false;
-                break;
-            default:
-                throw new CryptoPhotoResponseParseException("unexpected CryptoPhoto response status: " + status);
-            }
-
-            hasToken = lines.length > 2 ? "true".equalsIgnoreCase(lines[2].trim()) : false;
-            signature = lines.length > 3 ? lines[3].trim() : null;
+        public boolean is(String key) {
+            String value = get(key);
+            return value != null &&
+                   ((value = value.toLowerCase()).equals("true") || value.equals("yes") || value.equals("1"));
         }
+
+        /**
+         * Equivalent to calling <code>is(key)</code>. For some keys, 'has' sounds better (e.g. has("token")).
+         */
+        public boolean has(String key) { return is(key); }
     }
 }
