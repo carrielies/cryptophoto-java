@@ -56,26 +56,38 @@ public class CPTest {
     }
 
     public static void main(String[] args) throws Exception {
+        // CryptoPhoto 'client':
         CryptoPhotoUtils cryptoPhoto =
             new CryptoPhotoUtils("efe925bda3bc2b5cd6fe3ad3661075a7", "384b1bda2dafcd909f607083da22fef0");
 
+        // What's my visible IP?
         String ip = visibleIp();
         out.printf("Visible IP: %s%n%n", ip);
 
+        // Establish a CryptoPhoto session:
         CryptoPhotoResponse cryptoPhotoSession = cryptoPhoto.getSession("octavian", ip);
 
         if (!cryptoPhotoSession.is("valid")) {
-            out.printf("CryptoPhoto session is not valid!%nERROR: %s, %s%n%n", cryptoPhotoSession.get("error"),
+            out.printf("CryptoPhoto session not established!%nERROR: %s, %s%n%n", cryptoPhotoSession.get("error"),
                        cryptoPhotoSession.get("signature"));
             return;
         }
 
-        out.printf("CryptoPhoto session is valid.%nSID: %s, signature: %s, session has%s token%n%n",
+        out.printf("CryptoPhoto session established.%nSID: %s, signature: %s, session has%s token%n%n",
                    cryptoPhotoSession.get("id"), cryptoPhotoSession.get("signature"),
                    cryptoPhotoSession.has("token") ? "" : " no");
 
+        // See how CryptoPhoto widgets code would look like:
         out.println(cryptoPhoto.getTokenGenerationWidget(cryptoPhotoSession));
-
         out.println(cryptoPhoto.getChallengeWidget(cryptoPhotoSession));
+
+        // Ask CryptoPhoto to verify a user response:
+        // (! CODE SAMPLE ONLY! REQUIRES ACTUAL CORRECT USER INPUT TO SUCCEED !)
+        CryptoPhotoResponse cryptoPhotoVerification =
+            cryptoPhoto.verify("selector", "row", "col", "cph", "octavian", ip);
+
+        boolean success = cryptoPhotoVerification.is("valid");
+        out.printf("%nCryptoPhoto verification %s: %s%n%n", success ? "succeeded" : "failed",
+                   success ? cryptoPhotoVerification.get("message") : cryptoPhotoVerification.get("error"));
     }
 }

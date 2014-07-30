@@ -110,7 +110,7 @@ public class CryptoPhotoUtils {
         byte[] bytes = mac.doFinal(data.getBytes());
         char[] chars = new char[bytes.length * 2];
 
-        for (int i = 0; i < bytes.length; i++) {
+        for (int i = 0; i < bytes.length; i++) { // this 'to-hex' transformation should be quite fast...
             int v = bytes[i] & 0xFF;
             chars[i * 2] = HEX[v >>> 4];
             chars[i * 2 + 1] = HEX[v & 0x0F];
@@ -157,7 +157,7 @@ public class CryptoPhotoUtils {
 
         String[] lines = cpResponse.split("(\\r?\\n)+");
         if (lines.length < 2) {
-            throw new CryptoPhotoResponseParseException("unexpected CryptoPhoto response length (< 2 lines)");
+            throw new CryptoPhotoResponseParseException("unexpected CryptoPhoto response length: less than 2 lines");
         }
 
         CryptoPhotoResponse response = new CryptoPhotoResponse();
@@ -210,6 +210,64 @@ public class CryptoPhotoUtils {
 
         return "<script type=\"text/javascript\" src=\"" + server + "/api/challenge?sd=" +
                cryptoPhotoSession.get("id") + "\"></script>";
+    }
+
+    public CryptoPhotoResponse verify(String selector, String responseRow, String responseCol, String cph,
+                                      String userId, String ip) throws IOException, CryptoPhotoResponseParseException {
+        long time = new Date().getTime() / 1000L; // number of seconds since epoch...
+
+        String signature =
+            sign(new StringBuilder(new String(privateKey)).append(time).append(userId).append(publicKey).toString());
+
+        String data = new StringBuilder("publickey=").append(encode(publicKey, "UTF-8")).append("&uid=")
+                                                     .append(encode(userId, "UTF-8")).append("&time=").append(time)
+                                                     .append("&signature=").append(encode(signature, "UTF-8"))
+                                                     .append("&response_row=").append(encode(responseRow, "UTF-8"))
+                                                     .append("&response_col=").append(encode(responseCol, "UTF-8"))
+                                                     .append("&selector=").append(encode(selector, "UTF-8"))
+                                                     .append("&cph=").append(encode(cph, "UTF-8")).append("&ip=")
+                                                     .append(encode(ip, "UTF-8")).toString();
+
+        URL url = new URL(server + "/api/verify");
+
+        return parseVerification(post(url, data.getBytes()));
+    }
+
+    protected CryptoPhotoResponse parseVerification(String cpResponse) throws CryptoPhotoResponseParseException {
+        if (cpResponse == null) {
+            throw new NullPointerException("cannot parse a null CryptoPhoto response");
+        }
+
+        String[] lines = cpResponse.split("(\\r?\\n)+");
+        if (lines.length < 1) {
+            throw new CryptoPhotoResponseParseException("unexpected CryptoPhoto response length: less than 1 line");
+        }
+
+        CryptoPhotoResponse response = new CryptoPhotoResponse();
+
+        String status = lines[0].trim().toLowerCase();
+        switch (status) { // requires Java 7; if not available, just use if/else-if/else with .equals()
+        case "success":
+            response.put("valid", "true");
+            if (lines.length > 1) {
+                response.put("message", lines[1].trim());
+            }
+            break;
+        case "error":
+            response.put("valid", "false");
+            if (lines.length > 1) {
+                response.put("error", lines[1].trim());
+            }
+            break;
+        default:
+            throw new CryptoPhotoResponseParseException("unexpected CryptoPhoto response status: " + status);
+        }
+
+        if (lines.length > 2) {
+            response.put("signature", lines[2].trim());
+        }
+
+        return response;
     }
 
     /**
