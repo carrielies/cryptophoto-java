@@ -83,15 +83,7 @@
 <main role="main">
   <h1>Log in with CryptoPhoto</h1>
 
-  <c:if test="${loginFailed}">
-    <p class="error">The username you entered is not correct. Please try again.</p>
-  </c:if>
-
-  <form method="post" action="login">
-    <label for="userId">User name:</label>
-    <input id="userId" name="userId" placeholder="Enter the user id" autofocus="true" />
-    <input type="submit" value="> Go >" />
-  </form>
+  <p>Hello ${userId}, and welcome!</p>
 </main>
 
 <footer role="contentinfo"><p>Copyright (C) 2014 <a href="http://cryptophoto.com/">Cryptophoto.com</a>. All Rights
