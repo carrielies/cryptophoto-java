@@ -7,9 +7,29 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
+import java.util.Hashtable;
+import java.util.Map;
 
-@WebServlet(name = "login", urlPatterns = "/login")
+/**
+ * Better / more elegant / more generic solutions:
+ * <ol>
+ * <li>Use a {@link javax.servlet.Filter} to authenticate every request.</li>
+ * <li>Implement the <a href="http://en.wikipedia.org/wiki/Front_Controller_pattern">Front Controller pattern</a> as
+ * a Servlet.</li>
+ * <li>Use a <a href="http://zeroturnaround.com/rebellabs/the-curious-coders-java-web-frameworks-comparison-spring
+ * -mvc-grails-vaadin-gwt-wicket-play-struts-and-jsf/">Java web framework</a></li>
+ * </ol>
+ */
+@WebServlet("/*")
 public class LoginServlet extends HttpServlet {
+
+    private static final Map<String, String> DB = new Hashtable<String, String>();
+
+    static {
+        DB.put("Moria", "Mellon");
+        DB.put("Erebor", "Durin's Day");
+        DB.put("Redhorn", "Caradhras");
+    }
 
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
         throws ServletException, IOException {
@@ -28,6 +48,9 @@ public class LoginServlet extends HttpServlet {
         }
 
         request.setAttribute("loginFailed", false);
+
+        //String loginUrl = request.getContextPath() + "/login.jsp";
+        // if(request.getRequestURI().equals(loginUrl)) {
         request.getRequestDispatcher("login.jsp").forward(request, response);
     }
 
@@ -35,14 +58,14 @@ public class LoginServlet extends HttpServlet {
         throws ServletException, IOException {
         HttpSession session = request.getSession();
 
-        String sUserId = (String) session.getAttribute("userId");
-        if (sUserId != null && sUserId.trim().length() > 0) {
+        String userId = (String) session.getAttribute("userId");
+        if (userId != null && userId.trim().length() > 0) {
             response.sendRedirect("internal.jsp");
             return;
         }
 
-        String userId = request.getParameter("userId");
-        if (userId == null || userId.trim().length() == 0) {
+        userId = request.getParameter("userId");
+        if (userId == null || !DB.containsKey(userId = userId.trim())) {
             request.setAttribute("loginFailed", true);
             request.getRequestDispatcher("/login.jsp").forward(request, response);
         } else {
