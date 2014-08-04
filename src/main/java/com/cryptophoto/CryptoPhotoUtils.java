@@ -43,10 +43,11 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Date;
 import java.util.HashMap;
 
+import static java.lang.System.getProperty;
 import static java.net.URLEncoder.encode;
 
 /**
- * Helper class that handles calling the <a href="http://cryptophoto.com/admin/api">CryptoPhoto API</a>.
+ * Immutable helper class that handles calling the <a href="http://cryptophoto.com/admin/api">CryptoPhoto API</a>.
  *
  * @author <a href="http://cryptophoto.com">CryptoPhoto</a>,
  *         <a href="mailto:tech@cryptophoto.com">tech@cryptophoto.com</a>
@@ -54,15 +55,15 @@ import static java.net.URLEncoder.encode;
  */
 public class CryptoPhotoUtils {
 
+    private static final char[] HEX = "0123456789ABCDEF".toCharArray();
+
     private final String server;
 
     private final String publicKey;
 
     private final byte[] privateKey;
 
-    private Mac mac; // used to sign outgoing data
-
-    private static final char[] HEX = "0123456789ABCDEF".toCharArray();
+    private final Mac mac; // used to sign outgoing data
 
     public CryptoPhotoUtils(String publicKey, String privateKey) throws InvalidKeyException {
         this(null, publicKey, privateKey);
@@ -77,12 +78,36 @@ public class CryptoPhotoUtils {
         this.publicKey = publicKey;
         this.privateKey = privateKey.getBytes();
 
+        Mac mac = null;
         try {
             mac = Mac.getInstance("HmacSHA1");
             mac.init(new SecretKeySpec(this.privateKey, "HmacSHA1"));
         } catch (NoSuchAlgorithmException e) {
             // cannot happen since we hard-code the algorithm
         }
+        this.mac = mac;
+    }
+
+    public static String getVisibleIp() {
+        String ip = getProperty("ip");
+        if (ip == null || ip.trim().length() == 0) {
+            InputStream in = null;
+            try {
+                HttpURLConnection connection = (HttpURLConnection) new URL("https://cp.vu/show_my_ip").openConnection();
+                ip = new BufferedReader(new InputStreamReader(in = connection.getInputStream())).readLine();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                if (in != null) {
+                    try {
+                        in.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+        return ip;
     }
 
     public CryptoPhotoResponse getSession(String userId, String ip)
@@ -119,37 +144,6 @@ public class CryptoPhotoUtils {
         return new String(chars);
     }
 
-    protected String post(URL url, byte[] data) throws IOException {
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        connection.setDoInput(true);
-        connection.setDoOutput(true);
-        connection.setRequestMethod("POST");
-        connection.setRequestProperty("Content-Length", String.valueOf(data.length));
-        connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-
-        OutputStream out = connection.getOutputStream();
-        try {
-            out.write(data);
-            out.flush();
-        } finally {
-            out.close();
-        }
-
-        StringBuilder response = new StringBuilder();
-
-        InputStream in = connection.getInputStream();
-        try {
-            BufferedReader reader = new BufferedReader(new InputStreamReader(in));
-            for (String line = reader.readLine(); line != null; line = reader.readLine()) {
-                response.append(line).append("\n");
-            }
-        } finally {
-            in.close();
-        }
-
-        return response.toString();
-    }
-
     protected CryptoPhotoResponse parseSession(String cpResponse) throws CryptoPhotoResponseParseException {
         if (cpResponse == null) {
             throw new NullPointerException("cannot parse a null CryptoPhoto response");
@@ -184,6 +178,37 @@ public class CryptoPhotoUtils {
         }
 
         return response;
+    }
+
+    protected String post(URL url, byte[] data) throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setDoInput(true);
+        connection.setDoOutput(true);
+        connection.setRequestMethod("POST");
+        connection.setRequestProperty("Content-Length", String.valueOf(data.length));
+        connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+
+        OutputStream out = connection.getOutputStream();
+        try {
+            out.write(data);
+            out.flush();
+        } finally {
+            out.close();
+        }
+
+        StringBuilder response = new StringBuilder();
+
+        InputStream in = connection.getInputStream();
+        try {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+            for (String line = reader.readLine(); line != null; line = reader.readLine()) {
+                response.append(line).append("\n");
+            }
+        } finally {
+            in.close();
+        }
+
+        return response.toString();
     }
 
     public String getTokenGenerationWidget(CryptoPhotoResponse cryptoPhotoSession) throws CryptoPhotoInvalidSession {
@@ -280,6 +305,11 @@ public class CryptoPhotoUtils {
     public static class CryptoPhotoResponse extends HashMap<String, String> {
 
         /**
+         * Equivalent to calling <code>is(key)</code>. For some keys, 'has' sounds better (e.g. has("token")).
+         */
+        public boolean has(String key) { return is(key); }
+
+        /**
          * @return <code>true</code> if the value to which the specified <code>key</code> is mapped is
          * non-<code>null</code> and equals (case-insensitively) 'true', 'yes' or '1'.
          */
@@ -288,10 +318,5 @@ public class CryptoPhotoUtils {
             return value != null &&
                    ((value = value.toLowerCase()).equals("true") || value.equals("yes") || value.equals("1"));
         }
-
-        /**
-         * Equivalent to calling <code>is(key)</code>. For some keys, 'has' sounds better (e.g. has("token")).
-         */
-        public boolean has(String key) { return is(key); }
     }
 }

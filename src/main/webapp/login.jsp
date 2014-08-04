@@ -1,6 +1,7 @@
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 
 <%--@elvariable id="loginFailed" type="java.lang.Boolean"--%>
+<%--@elvariable id="cryptoPhotoWidget" type="java.lang.String"--%>
 
 <!DOCTYPE html>
 
@@ -33,14 +34,19 @@
   <h1>Log in with CryptoPhoto</h1>
 
   <c:if test="${loginFailed}">
-    <p class="error">The username or password you entered is not correct. Please try again.</p>
+    <p class="error">${errorMessage}</p>
   </c:if>
 
   <form method="post" action="login">
     <label for="userId">Username:</label>
-    <input id="userId" name="userId" placeholder="Enter the user id" autofocus="true" />
+    <input id="userId" name="userId" placeholder="Enter the user id" value="${userId}" autofocus="true" />
     <label for="passWd">Password:</label>
     <input id="passWd" name="passWd" type="password" />
+    <c:if test="${not empty cryptoPhotoWidget}">
+      <p>CryptoPhoto Auth:</p>
+
+      <p>${cryptoPhotoWidget}</p>
+    </c:if>
     <input type="submit" value="Go" />
   </form>
 </main>

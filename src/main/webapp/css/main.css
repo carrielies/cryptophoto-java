@@ -7,7 +7,6 @@ html { height: 100%; overflow: auto; background: #fff; color: #505050; }
 body {
   position: relative;
   margin: 0 auto;
-  max-width: 800px;
   min-height: 100%;
   outline: 1px solid #dadada;
   overflow: auto;
@@ -23,10 +22,7 @@ a { outline: none; color: #002d36; /* 0, 45, 54 */ text-decoration: none; }
 
 a:hover { color: #888; }
 
-.error {
-  color: #cd5c5c;
-  text-align: center;
-}
+.error { color: #cd5c5c; text-align: center; }
 
 [role=main] { font-size: 1rem; }
 
@@ -57,7 +53,7 @@ form[action=login] label {
 form[action=login] input[type=submit] { float: right; }
 
 [role=contentinfo] {
-  position: fixed;
+  position: relative;
   bottom: 0;
   left: 0;
   width: 100%;
