@@ -11,7 +11,7 @@ import java.util.Hashtable;
 import java.util.Map;
 
 /**
- * Better / more elegant / more generic solutions:
+ * Options:
  * <ol>
  * <li>Use a {@link javax.servlet.Filter} to authenticate every request.</li>
  * <li>Implement the <a href="http://en.wikipedia.org/wiki/Front_Controller_pattern">Front Controller pattern</a> as
@@ -20,7 +20,7 @@ import java.util.Map;
  * -mvc-grails-vaadin-gwt-wicket-play-struts-and-jsf/">Java web framework</a></li>
  * </ol>
  */
-@WebServlet("/*")
+@WebServlet(name = "loginServlet", urlPatterns = "/login")
 public class LoginServlet extends HttpServlet {
 
     private static final Map<String, String> DB = new Hashtable<String, String>();
@@ -37,20 +37,17 @@ public class LoginServlet extends HttpServlet {
 
         if (request.getParameter("logout") != null) {
             session.invalidate();
-            response.sendRedirect("login.jsp");
+            response.sendRedirect("/login.jsp");
             return;
         }
 
         String userId = (String) session.getAttribute("userId");
         if (userId != null && userId.trim().length() > 0) {
-            response.sendRedirect("internal.jsp");
+            response.sendRedirect("/internal.jsp");
             return;
         }
 
         request.setAttribute("loginFailed", false);
-
-        //String loginUrl = request.getContextPath() + "/login.jsp";
-        // if(request.getRequestURI().equals(loginUrl)) {
         request.getRequestDispatcher("login.jsp").forward(request, response);
     }
 
@@ -60,18 +57,18 @@ public class LoginServlet extends HttpServlet {
 
         String userId = (String) session.getAttribute("userId");
         if (userId != null && userId.trim().length() > 0) {
-            response.sendRedirect("internal.jsp");
+            response.sendRedirect("/internal.jsp");
             return;
         }
 
         userId = request.getParameter("userId");
         if (userId == null || !DB.containsKey(userId = userId.trim())) {
             request.setAttribute("loginFailed", true);
-            request.getRequestDispatcher("/login.jsp").forward(request, response);
+            request.getRequestDispatcher("login.jsp").forward(request, response);
         } else {
             session.setAttribute("userId", userId);
             request.changeSessionId();
-            response.sendRedirect("internal.jsp");
+            response.sendRedirect("/internal.jsp");
         }
     }
 }

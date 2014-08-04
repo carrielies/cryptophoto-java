@@ -6,6 +6,10 @@
          version="3.1">
   <display-name>Accessing CryptoPhoto from Java</display-name>
 
+  <welcome-file-list>
+    <welcome-file>internal.jsp</welcome-file>
+  </welcome-file-list>
+
   <jsp-config>
     <jsp-property-group>
       <url-pattern>*.jsp</url-pattern>
@@ -17,7 +21,7 @@
   </jsp-config>
 
   <session-config>
-    <session-timeout>30</session-timeout>
+    <session-timeout>10</session-timeout>
     <cookie-config>
       <http-only>true</http-only>
     </cookie-config>
