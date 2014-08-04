@@ -11,7 +11,7 @@ import java.util.Hashtable;
 import java.util.Map;
 
 /**
- * Options:
+ * A few implementation options for authentication:
  * <ol>
  * <li>Use a {@link javax.servlet.Filter} to authenticate every request.</li>
  * <li>Implement the <a href="http://en.wikipedia.org/wiki/Front_Controller_pattern">Front Controller pattern</a> as
@@ -20,7 +20,7 @@ import java.util.Map;
  * -mvc-grails-vaadin-gwt-wicket-play-struts-and-jsf/">Java web framework</a></li>
  * </ol>
  */
-@WebServlet(name = "loginServlet", urlPatterns = "/login")
+@WebServlet(urlPatterns = "/login")
 public class LoginServlet extends HttpServlet {
 
     private static final Map<String, String> DB = new Hashtable<String, String>();

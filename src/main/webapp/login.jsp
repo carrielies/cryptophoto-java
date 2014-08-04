@@ -37,8 +37,8 @@
   </c:if>
 
   <form method="post" action="login">
-    <label for="userId">User name:</label>
-    <input id="userId" name="userId" placeholder="Enter the user id" autofocus="true" />
+    <label>Username: <input id="userId" name="userId" placeholder="Enter the user id" autofocus="true" /></label>
+    <label>Password: <input id="passWd" name="passWd" /></label>
     <input type="submit" value="> Go >" />
   </form>
 </main>

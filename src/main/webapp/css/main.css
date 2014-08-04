@@ -35,6 +35,11 @@ a:hover { color: #888; }
   margin: 5px 5px 0;
 }
 
+[role=main] label {
+  display: block;
+  margin: 0 auto;
+}
+
 [role=contentinfo] {
   position: fixed;
   bottom: 0;
