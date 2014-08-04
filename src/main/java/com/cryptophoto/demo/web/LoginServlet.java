@@ -62,7 +62,11 @@ public class LoginServlet extends HttpServlet {
         }
 
         userId = request.getParameter("userId");
-        if (userId == null || !DB.containsKey(userId = userId.trim())) {
+
+        String passWd = request.getParameter("passWd");
+        passWd = passWd == null ? "" : passWd.trim();
+
+        if (userId == null || !passWd.equals(DB.get(userId = userId.trim()))) {
             request.setAttribute("loginFailed", true);
             request.getRequestDispatcher("login.jsp").forward(request, response);
         } else {

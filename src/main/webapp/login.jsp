@@ -33,13 +33,15 @@
   <h1>Log in with CryptoPhoto</h1>
 
   <c:if test="${loginFailed}">
-    <p class="error">The username you entered is not correct. Please try again.</p>
+    <p class="error">The username or password you entered is not correct. Please try again.</p>
   </c:if>
 
   <form method="post" action="login">
-    <label>Username: <input id="userId" name="userId" placeholder="Enter the user id" autofocus="true" /></label>
-    <label>Password: <input id="passWd" name="passWd" /></label>
-    <input type="submit" value="> Go >" />
+    <label for="userId">Username:</label>
+    <input id="userId" name="userId" placeholder="Enter the user id" autofocus="true" />
+    <label for="passWd">Password:</label>
+    <input id="passWd" name="passWd" type="password" />
+    <input type="submit" value="Go" />
   </form>
 </main>
 
