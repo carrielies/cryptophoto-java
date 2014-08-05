@@ -1,4 +1,6 @@
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+
+<%--@elvariable id="userId" type="java.lang.String"--%>
 <%--@elvariable id="errorMessage" type="java.lang.String"--%>
 <%--@elvariable id="cryptoPhotoWidget" type="java.lang.String"--%>
 
@@ -31,9 +33,7 @@
 
 <main role="main">
   <h1>Log in with CryptoPhoto</h1>
-
   <c:if test="${not empty errorMessage}"><p class="error">${errorMessage}</p></c:if>
-
   <form method="post" action="login">
     <label for="userId">Username:</label>
     <input id="userId" name="userId" placeholder="Enter the user id" value="${userId}" autofocus="true" />
