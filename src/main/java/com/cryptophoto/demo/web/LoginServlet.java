@@ -71,8 +71,8 @@ public class LoginServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
         throws ServletException, IOException {
         HttpSession session = request.getSession();
-        CryptoPhotoResponse cryptoPhotoSession = null;
         boolean authPending = TRUE.equals(session.getAttribute("authPending"));
+        CryptoPhotoResponse cryptoPhotoSession, cryptoPhotoVerification;
 
         // Check if user not already logged in:
         String userId = (String) session.getAttribute("userId");
@@ -81,7 +81,9 @@ public class LoginServlet extends HttpServlet {
             return;
         }
 
-        if (!authPending) { // surely we don't have a user id yet!
+        String ip = CryptoPhotoUtils.getVisibleIp();
+
+        if (!authPending) { // surely we don't have a user id yet:
 
             // Check user id and password:
             String passWd = request.getParameter("passWd");
@@ -93,10 +95,10 @@ public class LoginServlet extends HttpServlet {
 
             // Establish a valid CryptoPhoto session:
             try {
-                cryptoPhotoSession = cryptoPhoto.getSession(userId, CryptoPhotoUtils.getVisibleIp());
+                cryptoPhotoSession = cryptoPhoto.getSession(userId, ip);
                 if (!cryptoPhotoSession.is("valid")) {
-                    loginFailed("Cannot obtain a valid CryptoPhoto session (" + cryptoPhotoSession.get("error") + ")!",
-                                request, response);
+                    loginFailed("CryptoPhoto session is not valid (" + cryptoPhotoSession.get("error") + ")!", request,
+                                response);
                     return;
                 }
             } catch (CryptoPhotoResponseParseException e) {
@@ -106,27 +108,47 @@ public class LoginServlet extends HttpServlet {
 
             session.setAttribute("userId", userId);
             session.setAttribute("authPending", TRUE);
+
+            // Display CryptoPhoto widget (either token generation or challenge):
+            String cryptoPhotoWidget;
+            try {
+                cryptoPhotoWidget = cryptoPhotoSession.has("token") ? cryptoPhoto.getChallengeWidget(cryptoPhotoSession)
+                                                                    : cryptoPhoto
+                                        .getTokenGenerationWidget(cryptoPhotoSession);
+            } catch (CryptoPhotoInvalidSession e) {
+                session.invalidate();
+                loginFailed("CryptoPhoto session is not valid (" + e.getMessage() + ")!", request, response);
+                return;
+            }
+
+            request.setAttribute("cryptoPhotoWidget", cryptoPhotoWidget);
+            request.getRequestDispatcher("login.jsp").forward(request, response);
+
+        } else { // the user has just responded to the challenge:
+
+            String responseRow = request.getParameter("token_response_field_row");
+            String responseCol = request.getParameter("token_response_field_col");
+            String selector = request.getParameter("cp_selector");
+            String cph = request.getParameter("cp_cph");
+
+            try {
+                cryptoPhotoVerification = cryptoPhoto.verify(selector, responseRow, responseCol, cph, userId, ip);
+            } catch (CryptoPhotoResponseParseException e) {
+                session.invalidate();
+                loginFailed("CryptoPhoto verification failed (" + e.getMessage() + ")!", request, response);
+                return;
+            }
+
+            if (cryptoPhotoVerification.is("valid")) {
+                session.setAttribute("authPending", FALSE);
+                request.changeSessionId();
+                response.sendRedirect("/internal.jsp");
+            } else {
+                loginFailed("CryptoPhoto verification failed (" + cryptoPhotoVerification.get("error") + ")!", request,
+                            response);
+                return;
+            }
         }
-
-        // Display CryptoPhoto widget (either token generation or challenge):
-        String cryptoPhotoWidget = null;
-        try {
-            cryptoPhotoWidget = cryptoPhotoSession.has("token") ? cryptoPhoto.getChallengeWidget(cryptoPhotoSession)
-                                                                : cryptoPhoto
-                                    .getTokenGenerationWidget(cryptoPhotoSession);
-        } catch (CryptoPhotoInvalidSession cryptoPhotoInvalidSession) {
-            session.invalidate();
-            loginFailed("CryptoPhoto session is not valid", request, response);
-            return;
-        }
-
-        request.setAttribute("cryptoPhotoWidget", cryptoPhotoWidget);
-        request.getRequestDispatcher("login.jsp").forward(request, response);
-
-        // if (verify) {
-        //     request.changeSessionId();
-        //     response.sendRedirect("/internal.jsp");
-        // }
     }
 
     protected void loginFailed(String errorMessage, HttpServletRequest request, HttpServletResponse response)
