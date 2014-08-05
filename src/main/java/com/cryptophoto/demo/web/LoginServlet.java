@@ -146,8 +146,8 @@ public class LoginServlet extends HttpServlet {
             } else {
                 loginFailed("CryptoPhoto verification failed (" + cryptoPhotoVerification.get("error") + ")!", request,
                             response);
-                return;
             }
+
         }
     }
 
