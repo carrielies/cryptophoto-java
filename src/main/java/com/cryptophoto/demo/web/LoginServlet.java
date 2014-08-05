@@ -12,10 +12,10 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.security.InvalidKeyException;
-import java.util.Base64;
 import java.util.Hashtable;
 import java.util.Map;
 
+import static com.cryptophoto.CryptoPhotoUtils.CryptoPhotoResponse;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 
@@ -59,29 +59,30 @@ public class LoginServlet extends HttpServlet {
         }
 
         String userId = (String) session.getAttribute("userId");
-        if (userId != null && userId.trim().length() > 0 && !authPending(session)) {
+        if (userId != null && userId.trim().length() > 0 && !TRUE.equals(session.getAttribute("authPending"))) {
             response.sendRedirect("/internal.jsp");
             return;
         }
 
-        request.setAttribute("loginFailed", false);
+        request.setAttribute("errorMessage", null);
         request.getRequestDispatcher("login.jsp").forward(request, response);
     }
 
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
         throws ServletException, IOException {
         HttpSession session = request.getSession();
+        CryptoPhotoResponse cryptoPhotoSession = null;
+        boolean authPending = TRUE.equals(session.getAttribute("authPending"));
 
         // Check if user not already logged in:
         String userId = (String) session.getAttribute("userId");
-        boolean authPending = authPending(session);
         if (userId != null && userId.trim().length() > 0 && !authPending) {
             response.sendRedirect("/internal.jsp");
             return;
         }
 
-        CryptoPhotoUtils.CryptoPhotoResponse cryptoPhotoSession = null;
-        if (!authPending) {
+        if (!authPending) { // surely we don't have a user id yet!
+
             // Check user id and password:
             String passWd = request.getParameter("passWd");
             passWd = passWd == null ? "" : passWd.trim();
@@ -104,20 +105,19 @@ public class LoginServlet extends HttpServlet {
             }
 
             session.setAttribute("userId", userId);
+            session.setAttribute("authPending", TRUE);
         }
 
-        // Display CryptoPhoto widget:
+        // Display CryptoPhoto widget (either token generation or challenge):
         String cryptoPhotoWidget = null;
         try {
-            if (cryptoPhotoSession.has("token")) {
-                session.setAttribute("authPending", TRUE);
-                cryptoPhotoWidget = cryptoPhoto.getChallengeWidget(cryptoPhotoSession);
-            } else {
-                session.setAttribute("authPending", FALSE);
-                cryptoPhotoWidget = cryptoPhoto.getTokenGenerationWidget(cryptoPhotoSession);
-            }
+            cryptoPhotoWidget = cryptoPhotoSession.has("token") ? cryptoPhoto.getChallengeWidget(cryptoPhotoSession)
+                                                                : cryptoPhoto
+                                    .getTokenGenerationWidget(cryptoPhotoSession);
         } catch (CryptoPhotoInvalidSession cryptoPhotoInvalidSession) {
-            session.setAttribute("authPending", FALSE);
+            session.invalidate();
+            loginFailed("CryptoPhoto session is not valid", request, response);
+            return;
         }
 
         request.setAttribute("cryptoPhotoWidget", cryptoPhotoWidget);
@@ -132,11 +132,6 @@ public class LoginServlet extends HttpServlet {
     protected void loginFailed(String errorMessage, HttpServletRequest request, HttpServletResponse response)
         throws ServletException, IOException {
         request.setAttribute("errorMessage", errorMessage);
-        request.setAttribute("loginFailed", true);
         request.getRequestDispatcher("login.jsp").forward(request, response);
-    }
-
-    protected boolean authPending(HttpSession session) {
-        return session != null && TRUE.equals(session.getAttribute("authPending"));
     }
 }
